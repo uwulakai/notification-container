@@ -1,0 +1,2 @@
+class RabbitBrokerNotStartedError(Exception):
+    pass

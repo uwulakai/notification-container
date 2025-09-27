@@ -1,0 +1,69 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.pdb
+*.pkl
+*.log
+
+# Byte-compiled / optimized / DLL files
+*.so
+*.dll
+*.dylib
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Unit test / coverage reports
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.pytest_cache/
+
+# IDE & editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# FastAPI / Uvicorn logs
+*.log
+*.pid
+
+# Local configs & secrets
+.env
+
+# Static & media (если генерируется локально)
+staticfiles/
+media/
+
+# Jupyter notebooks
+.ipynb_checkpoints
+
+# Cache
+.cache/
+.mypy_cache/
+.pyre/
+.pytype/
+
+# Docker
+docker-compose.override.yml
