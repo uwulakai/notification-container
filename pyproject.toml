@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = [{ name = "Черемисин Максим Ильич", email = "b1elq@mail.ru" }, { name = "Нестеров Эдуард Михайлович" }]
 description = "Контейнер-агрегатор событий мессенджеров. Отслеживает обновления уведомлений в ботах через polling и отправляет логи в RabbitMQ"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.13,<4.0"
 dependencies = [
 	
 	"faststream[rabbit]",
