@@ -12,5 +12,6 @@ dependencies = [
     "dishka",
     "prometheus_client",
     "pydantic",
-    "pydantic-settings"
+    "pydantic-settings",
+    "httpx (>=0.28.1,<0.29.0)",
 ]
