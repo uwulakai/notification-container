@@ -1,0 +1,29 @@
+services:
+  polling_service:
+    build: .
+    container_name: polling_service
+    env_file:
+      - .env
+    ports:
+      - "8000:8000" # доступ к приложению
+      - "8001:8001" # метрики
+    depends_on:
+      - polling_rabbitmq
+    restart: always
+    command: poetry run python -m app.main
+
+  polling_rabbitmq:
+    image: rabbitmq:3-management
+    container_name: polling_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: always
+
+volumes:
+  rabbitmq_data:
