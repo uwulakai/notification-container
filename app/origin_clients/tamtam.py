@@ -2,11 +2,12 @@ import asyncio
 from typing import Optional
 import httpx
 
-from app.polling_clients.base_client import BasePollingClient
+from app.origin_clients.base_client import BaseOriginClient
 from app.logger import logger
+from app.schemas.message import MessageSchema
 
 
-class TamTamPollingService(BasePollingClient):
+class TamTamClient(BaseOriginClient):
     def __init__(self, token):
         self.token = token
         self.base_url = "https://botapi.tamtam.chat/"
@@ -54,19 +55,22 @@ class TamTamPollingService(BasePollingClient):
 
         if "updates" in update.keys():
             if len(update["updates"]) != 0:
-                # Получаем chat_id для mark_seen
                 chat_id = self.get_chat_id_from_update(update)
                 if chat_id:
                     await self.mark_seen(chat_id)
             else:
-                update = None
+                return None
         else:
-            update = None
+            return None
 
         if update and "marker" in update:
             self.marker = update["marker"]
 
-        return update
+        return MessageSchema(
+            chat_id=chat_id,
+            text=self.get_text(update),
+            chat_user_name=self.get_name(update),
+        )
 
     def get_chat_id_from_update(self, update):
         """Извлекает chat_id из update"""
@@ -94,20 +98,6 @@ class TamTamPollingService(BasePollingClient):
             else:
                 upd_type = update.get("update_type")
         return upd_type
-
-    async def get_bot_user_id(self):
-        """
-        Возвращает айди текущего бота.
-        """
-        method = "me"
-        params = {"access_token": self.token}
-        try:
-            response = await self.client.get(self.base_url + method, params=params)
-            bot_info = response.json()
-            return bot_info.get("user_id")
-        except Exception as e:
-            logger.error(f"Error getting bot user id: {e}")
-            return None
 
     def get_marker(self, update):
         """Метод получения маркера события"""
@@ -201,6 +191,33 @@ class TamTamPollingService(BasePollingClient):
                     logger.error(f"Error getting text from chat created: {e}")
 
         return text
+
+    def get_name(self, update):
+        """
+        Получение имени пользователя, инициировавшего событие, в том числе нажатие кнопки
+        :param update: результат работы метода get_update
+        :return: возвращает, если это возможно, значение поля 'name' не зависимо от события, произошедшего с ботом
+                 если событие - "удаление сообщения", то name = None
+        """
+        name = None
+        if update:
+            if "updates" in update.keys():
+                upd = update["updates"][0]
+            else:
+                upd = update
+            if "user" in upd.keys():
+                name = upd["user"]["name"]
+            elif "callback" in upd.keys():
+                name = upd["callback"]["user"]["name"]
+            elif "chat" in upd.keys():
+                upd = upd["chat"]
+                if "dialog_with_user" in upd.keys():
+                    name = upd["dialog_with_user"]["name"]
+            elif "message" in upd.keys():
+                upd = upd["message"]
+                if "sender" in upd.keys():
+                    name = upd["sender"]["name"]
+        return name
 
     async def run_polling(self):
         """Асинхронный метод для запуска поллинга"""

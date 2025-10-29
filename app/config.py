@@ -18,7 +18,7 @@ class BaseSettingsConfig(BaseSettings):
 class RabbitMQSettings(BaseSettingsConfig):
     """Настройки для подключения к RabbitMQ"""
 
-    RABBITMQ_HOST: str = "rabbitmq"
+    RABBITMQ_HOST: str = "polling_rabbitmq"
     RABBITMQ_PORT: int = 5672
     RABBITMQ_USER: SecretStr
     RABBITMQ_PASS: SecretStr

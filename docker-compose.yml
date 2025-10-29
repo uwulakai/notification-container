@@ -9,6 +9,10 @@ services:
       - "8001:8001" # метрики
     depends_on:
       - polling_rabbitmq
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app
     restart: always
     command: poetry run python -m app.main
 

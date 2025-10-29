@@ -1,13 +1,13 @@
 import asyncio
 
-from app.polling_clients.base_client import BasePollingClient
-from app.clients.rabbit import RabbitProducerClient
+from app.origin_clients.base_client import BaseOriginClient
+from app.clients.rabbit.client import RabbitProducerClient
 
 
 class PollingWorker:
     def __init__(
         self,
-        client: BasePollingClient,
+        client: BaseOriginClient,
         publisher: RabbitProducerClient,
         update_queue: str,
         backoff_sec: float,

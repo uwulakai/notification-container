@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 
-class BasePollingClient(ABC):
+class BaseOriginClient(ABC):
     @abstractmethod
     async def create_client(self):
         pass
