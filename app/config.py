@@ -1,6 +1,7 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import SecretStr, computed_field
 from typing import List
+
+from pydantic import SecretStr, computed_field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.enums.logging import LoggingLevel
 
@@ -62,12 +63,19 @@ class TamTamSettings(BaseSettingsConfig):
         ]
 
 
+class RedisSettings(BaseSettingsConfig):
+    """Настройки для подключения к Redis"""
+
+    REDIS_URL: SecretStr
+
+
 class Settings(BaseSettings):
     """Общий класс настроек"""
 
     rabbit: RabbitMQSettings = RabbitMQSettings()
     logging: LoggingSettings = LoggingSettings()
     tam_tam: TamTamSettings = TamTamSettings()
+    redis: RedisSettings = RedisSettings()
 
 
 settings = Settings()

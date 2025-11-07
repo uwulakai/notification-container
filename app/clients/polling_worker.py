@@ -2,6 +2,8 @@ import asyncio
 
 from app.origin_clients.base_client import BaseOriginClient
 from app.clients.rabbit.client import RabbitProducerClient
+from app.clients.redis.redis_client import RedisRateLimiter
+from app.logger import logger
 
 
 class PollingWorker:
@@ -9,11 +11,13 @@ class PollingWorker:
         self,
         client: BaseOriginClient,
         publisher: RabbitProducerClient,
+        redis_client: RedisRateLimiter,
         update_queue: str,
         backoff_sec: float,
     ):
         self.client = client
         self.publisher = publisher
+        self.redis_client = redis_client
         self.is_running = False
         self.update_queue = update_queue
         self.backoff_sec = backoff_sec
@@ -24,10 +28,11 @@ class PollingWorker:
 
         try:
             while self.is_running:
+                await self.redis_client.wait_unavailable()
+                logger.info(f"Бот {self.client.token[-5:-1]} делает запрос...")
                 update = await self.client.get_updates()
                 if update:
                     await self.publisher.send(update, self.update_queue)
-                await asyncio.sleep(self.backoff_sec)
         except asyncio.CancelledError:
             pass
         finally:

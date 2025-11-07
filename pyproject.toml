@@ -13,5 +13,6 @@ dependencies = [
     "prometheus_client",
     "pydantic",
     "pydantic-settings",
-    "httpx (>=0.28.1,<0.29.0)"
+    "httpx (>=0.28.1,<0.29.0)",
+    "redis"
 ]

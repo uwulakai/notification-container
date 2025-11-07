@@ -1,5 +1,5 @@
-from app.clients.rabbit.provide import get_rabbit_client
 from app.clients.rabbit.create_queues import create_queues
+from app.clients.rabbit.provide import get_rabbit_client
 
 
 async def on_startup():

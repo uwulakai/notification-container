@@ -3,9 +3,9 @@ import signal
 
 from app.config import settings
 from app.logger import logger
+from app.on_startup import on_startup
 from app.service import start_all_workers
 from app.utils.loop_settings import handle_async_exception, safe_create_task
-from app.on_startup import on_startup
 
 
 async def main():
