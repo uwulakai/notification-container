@@ -47,6 +47,7 @@ Thumbs.db
 
 # FastAPI / Uvicorn logs
 *.log
+logs/
 *.pid
 
 # Local configs & secrets
