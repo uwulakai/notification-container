@@ -41,10 +41,7 @@ services:
         "--appendonly",
         "yes",
       ]
-    volumes:
-      - redis_data:/data
     restart: always
 
 volumes:
   rabbitmq_data:
-  redis_data:

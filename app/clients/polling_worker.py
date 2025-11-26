@@ -28,7 +28,7 @@ class PollingWorker:
 
         try:
             while self.is_running:
-                await self.redis_client.wait_unavailable()
+                await self.redis_client.wait_for_service("tamtam")
                 logger.info(f"Бот {self.client.token[-5:-1]} делает запрос...")
                 update = await self.client.get_updates()
                 if update:

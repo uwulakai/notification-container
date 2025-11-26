@@ -15,7 +15,7 @@ async def start_all_workers():
     for token in settings.tam_tam.TAM_TAM_TOKENS:
         client = TamTamClient(token.get_secret_value())
         publisher = await get_rabbit_client()
-        redis_client = RedisRateLimiter(settings.redis.REDIS_URL.get_secret_value(), 10)
+        redis_client = RedisRateLimiter(settings.redis.REDIS_URL.get_secret_value(), 1)
         await redis_client.connect()
         worker = PollingWorker(
             client,

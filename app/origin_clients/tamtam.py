@@ -17,8 +17,6 @@ class TamTamClient(BaseOriginClient):
         self.marker: Optional[str] = None
         self.client: Optional[httpx.AsyncClient] = None
 
-        # Метрики
-
     async def create_client(self):
         if self.client is None:
             self.client = httpx.AsyncClient()
@@ -30,7 +28,7 @@ class TamTamClient(BaseOriginClient):
             self.client = None
             logger.info("HTTPX клиент закрыт")
 
-    async def get_updates(self, limit=1, timeout=45):
+    async def get_updates(self, limit=1, timeout=1):
         """Выполнение запроса к TamTam API"""
         method = "updates"
         params = {
