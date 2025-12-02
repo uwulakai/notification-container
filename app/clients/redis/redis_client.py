@@ -87,7 +87,6 @@ class RedisRateLimiter:
 
         try:
             if self._script_sha:
-                # Используем pre-loaded Lua script
                 result = await self.redis.evalsha(
                     self._script_sha,
                     1,  # количество ключей
@@ -99,12 +98,10 @@ class RedisRateLimiter:
                 allowed, remaining = bool(result[0]), int(result[1])
                 return allowed, remaining
             else:
-                # Fallback реализация
                 return await self._acquire_fallback(key, current_time)
 
         except RedisError as e:
             logger.error(f"Redis error in acquire_for_service: {e}")
-            # При ошибке Redis разрешаем запрос для избежания блокировки системы
             return True, self.max_requests_per_service - 1
 
     async def _acquire_fallback(
@@ -113,7 +110,6 @@ class RedisRateLimiter:
         """Fallback реализация через pipeline"""
         async with self.redis.pipeline(transaction=True) as pipe:
             try:
-                # Удаляем старые записи и получаем текущее количество
                 pipe.zremrangebyscore(key, 0, current_time - self.window_seconds)
                 pipe.zcard(key)
                 pipe.zadd(key, {str(current_time): current_time})
@@ -125,7 +121,6 @@ class RedisRateLimiter:
                 if current_count <= self.max_requests_per_service:
                     return True, self.max_requests_per_service - current_count - 1
                 else:
-                    # Получаем время самого старого запроса для расчета ожидания
                     oldest = await self.redis.zrange(key, 0, 0, withscores=True)
                     if oldest:
                         wait_time = self.window_seconds - (current_time - oldest[0][1])
