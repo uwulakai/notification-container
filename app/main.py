@@ -1,14 +1,24 @@
 import asyncio
 import signal
+from prometheus_client import start_http_server
+from datetime import datetime
 
 from app.config import settings
 from app.logger import logger
 from app.on_startup import on_startup
 from app.service import start_all_workers
 from app.utils.loop_settings import handle_async_exception, safe_create_task
+from app.metrics import registry, SERVICE_INFO
 
 
 async def main():
+    SERVICE_INFO.info(
+        {
+            "start_time": datetime.now().isoformat(),
+        }
+    )
+    start_http_server(settings.prometheus.METRICS_PORT, registry=registry)
+
     loop = asyncio.get_event_loop()
     stop_event = asyncio.Event()
 

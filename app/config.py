@@ -51,7 +51,6 @@ class TamTamSettings(BaseSettingsConfig):
 
     TAM_TAM_TOKENS_STR: SecretStr = ""
     TAM_TAM_MAX_POLLING_BOTS: int = 10
-    TAM_TAM_BACKOFF_SEC: float = 0.05
 
     @computed_field
     @property
@@ -69,6 +68,12 @@ class RedisSettings(BaseSettingsConfig):
     REDIS_URL: SecretStr
 
 
+class PrometheusSettings(BaseSettingsConfig):
+    """Настройки Prometheus"""
+
+    METRICS_PORT: int = 8001
+
+
 class Settings(BaseSettings):
     """Общий класс настроек"""
 
@@ -76,6 +81,7 @@ class Settings(BaseSettings):
     logging: LoggingSettings = LoggingSettings()
     tam_tam: TamTamSettings = TamTamSettings()
     redis: RedisSettings = RedisSettings()
+    prometheus: PrometheusSettings = PrometheusSettings()
 
 
 settings = Settings()

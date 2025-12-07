@@ -3,6 +3,11 @@ import asyncio
 from app.origin_clients.base_client import BaseOriginClient
 from app.clients.rabbit.client import RabbitProducerClient
 from app.clients.redis.redis_client import RedisRateLimiter
+from app.metrics import (
+    get_token_suffix,
+    RABBITMQ_MESSAGES_SENT,
+    RABBITMQ_MESSAGES_ERROR,
+)
 from app.logger import logger
 
 
@@ -13,14 +18,13 @@ class PollingWorker:
         publisher: RabbitProducerClient,
         redis_client: RedisRateLimiter,
         update_queue: str,
-        backoff_sec: float,
     ):
         self.client = client
+        self.origin_type = client.origin_type
         self.publisher = publisher
         self.redis_client = redis_client
         self.is_running = False
         self.update_queue = update_queue
-        self.backoff_sec = backoff_sec
 
     async def start(self):
         self.is_running = True
@@ -29,10 +33,25 @@ class PollingWorker:
         try:
             while self.is_running:
                 await self.redis_client.wait_for_service("tamtam")
-                logger.info(f"Бот {self.client.token[-5:-1]} делает запрос...")
+                logger.info(
+                    f"Бот {get_token_suffix(self.client.token)} делает запрос..."
+                )
                 update = await self.client.get_updates()
                 if update:
-                    await self.publisher.send(update, self.update_queue)
+                    try:
+                        await self.publisher.send(update, self.update_queue)
+                        RABBITMQ_MESSAGES_SENT.labels(
+                            origin_type=self.origin_type,
+                            token_suffix=self.client.token_suffix,
+                        ).inc()
+                    except Exception as e:
+                        logger.error(
+                            f"Ошибка отправки в RabbitMQ. Origin_type: {self.origin_type}, token_suffix: {self.client.token_suffix}. Ошибка: {e}"
+                        )
+                        RABBITMQ_MESSAGES_ERROR.labels(
+                            origin_type=self.origin_type,
+                            token_suffix=self.client.token_suffix,
+                        ).inc()
         except asyncio.CancelledError:
             pass
         finally:
