@@ -3,6 +3,8 @@ from typing import Optional
 import httpx
 
 from app.origin_clients.base_client import BaseOriginClient
+from app.metrics import metrics_middleware, get_token_suffix
+from app.enums.polling_workers import OriginType
 from app.logger import logger
 from app.schemas.message import MessageSchema
 
@@ -10,12 +12,20 @@ from app.schemas.message import MessageSchema
 class TamTamClient(BaseOriginClient):
     def __init__(self, token):
         self.token = token
+
+        self.token_suffix = get_token_suffix(self.token)
+        self.origin_type = OriginType.TAMTAM
+
         self.base_url = "https://botapi.tamtam.chat/"
 
         # Состояние сервиса
         self.is_running = False
         self.marker: Optional[str] = None
         self.client: Optional[httpx.AsyncClient] = None
+
+        self.get_updates = metrics_middleware(
+            origin_type=self.origin_type, token_suffix=self.token_suffix
+        )(self._get_updates)
 
     async def create_client(self):
         if self.client is None:
@@ -28,7 +38,7 @@ class TamTamClient(BaseOriginClient):
             self.client = None
             logger.info("HTTPX клиент закрыт")
 
-    async def get_updates(self, limit=1, timeout=1):
+    async def _get_updates(self, limit=1, timeout=1):
         """Выполнение запроса к TamTam API"""
         method = "updates"
         params = {
@@ -46,10 +56,11 @@ class TamTamClient(BaseOriginClient):
             response = await self.client.get(
                 self.base_url + method, params=params, timeout=60
             )
+            response.raise_for_status()
             update = response.json()
         except Exception as e:
             logger.error(f"Error in get_updates: {str(e)}")
-            return None
+            raise
 
         if "updates" in update.keys():
             if len(update["updates"]) != 0:

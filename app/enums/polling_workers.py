@@ -1,4 +1,5 @@
 from enum import Enum
 
-class SourceType(str, Enum):
+
+class OriginType(str, Enum):
     TAMTAM = "TAMTAM"

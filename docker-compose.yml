@@ -43,5 +43,30 @@ services:
       ]
     restart: always
 
+  # OBSERVABILITY
+
+  polling_prometheus:
+    image: prom/prometheus:latest
+    container_name: polling_prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheusdata:/prometheus
+
+  polling_grafana:
+    image: grafana/grafana:latest
+    container_name: polling_grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASS}
+    volumes:
+      - ./grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - grafanadata:/var/lib/grafana
+
 volumes:
   rabbitmq_data:
+  prometheusdata:
+  grafanadata:

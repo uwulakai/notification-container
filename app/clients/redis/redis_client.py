@@ -4,12 +4,23 @@ from typing import Optional, Tuple
 import redis.asyncio as redis
 from redis.exceptions import RedisError
 
+from app.metrics import (
+    REDIS_OPERATIONS,
+    RATE_LIMIT_REQUESTS,
+    RATE_LIMIT_WAIT_TIME,
+    CONNECTION_STATUS,
+)
+from app.enums.polling_workers import OriginType
 from app.logger import logger
 
 
 class RedisRateLimiter:
     def __init__(
-        self, redis_url: str, max_requests_per_service: int, window_seconds: int = 1
+        self,
+        redis_url: str,
+        max_requests_per_service: int,
+        origin_type: OriginType,
+        window_seconds: int = 1,
     ):
         self.redis_url = redis_url
         self.max_requests_per_service = (
@@ -20,18 +31,36 @@ class RedisRateLimiter:
         self.redis: Optional[redis.Redis] = None
         self._script_sha: Optional[str] = None
 
+        self.origin_type = origin_type
+
     async def connect(self):
         """Создаёт соединение с Redis и загружает Lua-скрипт."""
         if not self.redis:
-            self.redis = redis.from_url(
-                self.redis_url,
-                encoding="utf-8",
-                decode_responses=True,
-                socket_connect_timeout=5,
-                socket_timeout=5,
-                retry_on_timeout=True,
-            )
-            await self._load_lua_script()
+            try:
+                self.redis = redis.from_url(
+                    self.redis_url,
+                    encoding="utf-8",
+                    decode_responses=True,
+                    socket_connect_timeout=5,
+                    socket_timeout=5,
+                    retry_on_timeout=True,
+                )
+                await self._load_lua_script()
+                CONNECTION_STATUS.labels(
+                    origin_type=self.origin_type, service="redis"
+                ).set(1)
+                REDIS_OPERATIONS.labels(
+                    origin_type=self.origin_type, operation="connect", status="success"
+                ).inc()
+            except Exception as e:
+                logger.error(f"Failed to connect to Redis: {e}")
+                CONNECTION_STATUS.labels(
+                    origin_type=self.origin_type, service="redis"
+                ).set(0)
+                REDIS_OPERATIONS.labels(
+                    origin_type=self.origin_type, operation="connect", status="error"
+                ).inc()
+                raise
 
     async def _load_lua_script(self):
         """Загружает Lua-скрипт для атомарного rate limiting по сервису."""
@@ -79,6 +108,7 @@ class RedisRateLimiter:
         Returns:
             Tuple[bool, int]: (allowed, remaining_requests_or_wait_time)
         """
+        RATE_LIMIT_REQUESTS.labels(origin_type=self.origin_type, action="acquire").inc()
         if not self.redis:
             await self.connect()
 
@@ -96,13 +126,26 @@ class RedisRateLimiter:
                     current_time,
                 )
                 allowed, remaining = bool(result[0]), int(result[1])
+                REDIS_OPERATIONS.labels(
+                    origin_type=self.origin_type,
+                    operation="rate_limit_check",
+                    status="success",
+                ).inc()
                 return allowed, remaining
             else:
                 return await self._acquire_fallback(key, current_time)
 
         except RedisError as e:
             logger.error(f"Redis error in acquire_for_service: {e}")
+            REDIS_OPERATIONS.labels(
+                origin_type=self.origin_type,
+                operation="rate_limit_check",
+                status="error",
+            ).inc()
             return True, self.max_requests_per_service - 1
+        finally:
+            duration = time.time() - current_time
+            RATE_LIMIT_WAIT_TIME.labels(origin_type=self.origin_type).observe(duration)
 
     async def _acquire_fallback(
         self, key: str, current_time: float
@@ -136,8 +179,10 @@ class RedisRateLimiter:
         Умное ожидание для конкретного сервиса.
         Все боты этого сервиса будут ждать вместе когда освободится место в общем лимите.
         """
+        RATE_LIMIT_REQUESTS.labels(origin_type=self.origin_type, action="wait").inc()
         total_wait_time = 0
         max_total_wait = 30.0
+        wait_start = time.time()
 
         while total_wait_time < max_total_wait:
             allowed, remaining_or_wait = await self.acquire_for_service(service)
@@ -164,6 +209,10 @@ class RedisRateLimiter:
             logger.warning(
                 f"Service rate limit timeout for {service} after {total_wait_time}s"
             )
+        total_duration = time.time() - wait_start
+        RATE_LIMIT_WAIT_TIME.labels(origin_type=self.origin_type).observe(
+            total_duration
+        )
 
     async def get_service_metrics(self, service: str) -> dict:
         """Возвращает метрики текущего состояния rate limiter для сервиса."""
