@@ -53,7 +53,9 @@ class RabbitProducerClient:
 
         for attempt in range(1, self.max_retries + 1):
             try:
-                await self.broker.publish(queue=queue, message=message.model_dump())
+                await self.broker.publish(
+                    queue=queue, message=message.model_dump_json()
+                )
                 logger.info(f"Отправлено сообщение {message} в queue {queue}")
                 break
             except Exception as e:
