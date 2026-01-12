@@ -9,3 +9,4 @@ class CircuitBreakerState(str, Enum):
 
 class CircuitBreakerClientEnum(str, Enum):
     RABBITMQ = "RABBITMQ"
+    REDIS = "REDIS"

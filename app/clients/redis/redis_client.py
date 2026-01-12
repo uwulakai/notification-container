@@ -33,6 +33,19 @@ class RedisRateLimiter:
 
         self.origin_type = origin_type
 
+    async def ensure_connection(self):
+        """Гарантирует, что соединение с Redis активно."""
+        if not self.redis:
+            await self.connect()
+            return
+
+        try:
+            await self.redis.ping()
+        except (RedisError, ConnectionError):
+            logger.warning("Redis connection lost, reconnecting...")
+            await self.disconnect()
+            await self.connect()
+
     async def connect(self):
         """Создаёт соединение с Redis и загружает Lua-скрипт."""
         if not self.redis:
@@ -45,6 +58,8 @@ class RedisRateLimiter:
                     socket_timeout=5,
                     retry_on_timeout=True,
                 )
+                # Пробуем ping для проверки соединения
+                await self.redis.ping()
                 await self._load_lua_script()
                 CONNECTION_STATUS.labels(
                     origin_type=self.origin_type, service="redis"
@@ -60,6 +75,11 @@ class RedisRateLimiter:
                 REDIS_OPERATIONS.labels(
                     origin_type=self.origin_type, operation="connect", status="error"
                 ).inc()
+                # Закрываем соединение при ошибке
+                if self.redis:
+                    await self.redis.close()
+                    self.redis = None
+                self._script_sha = None
                 raise
 
     async def _load_lua_script(self):
@@ -109,29 +129,39 @@ class RedisRateLimiter:
             Tuple[bool, int]: (allowed, remaining_requests_or_wait_time)
         """
         RATE_LIMIT_REQUESTS.labels(origin_type=self.origin_type, action="acquire").inc()
-        if not self.redis:
-            await self.connect()
+
+        await self.ensure_connection()
 
         key = f"{self.key_prefix}:service:{service}"
         current_time = time.time()
 
         try:
             if self._script_sha:
-                result = await self.redis.evalsha(
-                    self._script_sha,
-                    1,  # количество ключей
-                    key,
-                    self.max_requests_per_service,
-                    self.window_seconds,
-                    current_time,
-                )
-                allowed, remaining = bool(result[0]), int(result[1])
-                REDIS_OPERATIONS.labels(
-                    origin_type=self.origin_type,
-                    operation="rate_limit_check",
-                    status="success",
-                ).inc()
-                return allowed, remaining
+                try:
+                    result = await self.redis.evalsha(
+                        self._script_sha,
+                        1,
+                        key,
+                        self.max_requests_per_service,
+                        self.window_seconds,
+                        current_time,
+                    )
+                    allowed, remaining = bool(result[0]), int(result[1])
+                    REDIS_OPERATIONS.labels(
+                        origin_type=self.origin_type,
+                        operation="rate_limit_check",
+                        status="success",
+                    ).inc()
+                    return allowed, remaining
+                except RedisError as e:
+                    if "No matching script" in str(e):
+                        # ПЕРЕЗАГРУЖАЕМ скрипт при такой ошибке
+                        logger.warning("Lua script not found, reloading...")
+                        await self._load_lua_script()
+                        # Пробуем снова с EVAL вместо EVALSHA
+                        return await self._acquire_fallback(key, current_time)
+                    else:
+                        raise
             else:
                 return await self._acquire_fallback(key, current_time)
 

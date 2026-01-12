@@ -4,3 +4,7 @@ class BaseCircuitBreakerOpenError(Exception):
 
 class RabbitMQCircuitBreakerOpenError(Exception):
     """Соединение с RabbitMQ клиентом отозвано"""
+
+
+class RedisCircuitBreakerOpenError(Exception):
+    """Соединение с Redis клиентом отозвано"""
