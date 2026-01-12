@@ -142,7 +142,7 @@ class RedisRateLimiter:
                 operation="rate_limit_check",
                 status="error",
             ).inc()
-            return True, self.max_requests_per_service - 1
+            raise
         finally:
             duration = time.time() - current_time
             RATE_LIMIT_WAIT_TIME.labels(origin_type=self.origin_type).observe(duration)
