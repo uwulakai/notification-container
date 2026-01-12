@@ -8,6 +8,7 @@ from app.logger import logger
 from app.on_startup import on_startup
 from app.service import start_all_workers
 from app.utils.loop_settings import handle_async_exception, safe_create_task
+from app.utils.rabbit_waiter import wait_for_rabbit
 from app.metrics import registry, SERVICE_INFO
 
 
@@ -40,5 +41,6 @@ async def main():
 
 if __name__ == "__main__":
     logger.info(f"Все настройки инициализированы: {settings}")
+    asyncio.run(wait_for_rabbit())
     asyncio.run(on_startup())
     asyncio.run(main())
